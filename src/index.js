@@ -15,6 +15,7 @@ const scraper = new CricinfoScraper({
   detailConcurrency: DETAIL_CONCURRENCY
 });
 
+const scraper = new CricinfoScraper({ refreshIntervalMs: REFRESH_INTERVAL_MS });
 const eventClients = new Set();
 
 scraper.on('delta', (delta) => {
@@ -79,6 +80,14 @@ app.get('/api/live-cricket-score', (_req, res) => {
 
 app.get('/api/live-matches', (_req, res) => {
   const matches = scraper.state.live.matches || [];
+  const liveSections = scraper.state.live.sections || [];
+  const matches = liveSections.flatMap((section) =>
+    (section.cards || []).map((card) => ({
+      section: section.title,
+      ...card
+    }))
+  );
+
   res.json({
     meta: scraper.state.meta,
     total: matches.length,

@@ -6,6 +6,7 @@ This service keeps a Puppeteer browser session alive and continuously scrapes:
 - `https://www.espncricinfo.com/cricket-fixtures`
 
 It scrapes listing pages **and then iterates through each discovered match URL in new tabs/pages** to collect full match-detail payloads (headings, tables, lists, links, and full page text).
+It exposes Express routes with Cricinfo-style resources (`live-cricket-score`, `cricket-fixtures`) and pushes detected changes via Server-Sent Events.
 
 ## Features
 
@@ -13,6 +14,7 @@ It scrapes listing pages **and then iterates through each discovered match URL i
 - **Event-based updates** by polling and emitting deltas when new/changed records appear.
 - **Deep scraping** of every discovered match page URL from live + fixtures listings.
 - **REST API routes** for live scores, fixtures, popular teams, listing matches, and full detail objects.
+- **REST API routes** for live scores, fixtures, popular teams, and combined data.
 - **SSE endpoint** (`/api/events`) to stream updates to clients.
 
 ## Setup
@@ -39,6 +41,8 @@ Environment variables:
 - `GET /api/popular-teams`
 - `GET /api/cricket-fixtures`
 - `GET /api/fixture-match-details`
+- `GET /api/popular-teams`
+- `GET /api/cricket-fixtures`
 - `GET /api/events` (SSE stream)
 
 ## Example SSE Client
