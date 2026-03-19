@@ -1,0 +1,21 @@
+{
+  "name": "scorevo-cricinfo-proxy",
+  "version": "1.0.0",
+  "description": "Event-based ESPN Cricinfo scraper + Express proxy API",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "lint": "node -e \"console.log('No linter configured')\""
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "puppeteer": "^24.8.2",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "axios": "^1.8.4",
+    "cheerio": "^1.0.0"
+  }
+}
