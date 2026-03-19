@@ -4,10 +4,16 @@ const { CricinfoScraper, LIVE_URL, FIXTURES_URL } = require('./scraper/cricinfoS
 
 const PORT = Number(process.env.PORT || 3000);
 const REFRESH_INTERVAL_MS = Number(process.env.REFRESH_INTERVAL_MS || 15000);
+const DETAIL_CONCURRENCY = Number(process.env.DETAIL_CONCURRENCY || 3);
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+const scraper = new CricinfoScraper({
+  refreshIntervalMs: REFRESH_INTERVAL_MS,
+  detailConcurrency: DETAIL_CONCURRENCY
+});
 
 const scraper = new CricinfoScraper({ refreshIntervalMs: REFRESH_INTERVAL_MS });
 const eventClients = new Set();
@@ -50,6 +56,8 @@ app.get('/api', (_req, res) => {
       fixtures: '/api/cricket-fixtures',
       popularTeams: '/api/popular-teams',
       liveMatches: '/api/live-matches',
+      liveMatchDetails: '/api/live-match-details',
+      fixtureMatchDetails: '/api/fixture-match-details',
       stream: '/api/events'
     }
   });
@@ -64,11 +72,14 @@ app.get('/api/live-cricket-score', (_req, res) => {
     meta: scraper.state.meta,
     popularTeams: scraper.state.live.popularTeams,
     sections: scraper.state.live.sections,
+    matches: scraper.state.live.matches,
+    matchDetails: scraper.state.live.matchDetails,
     rawPageText: scraper.state.live.rawPageText
   });
 });
 
 app.get('/api/live-matches', (_req, res) => {
+  const matches = scraper.state.live.matches || [];
   const liveSections = scraper.state.live.sections || [];
   const matches = liveSections.flatMap((section) =>
     (section.cards || []).map((card) => ({
@@ -84,6 +95,15 @@ app.get('/api/live-matches', (_req, res) => {
   });
 });
 
+app.get('/api/live-match-details', (_req, res) => {
+  const details = scraper.state.live.matchDetails || [];
+  res.json({
+    meta: scraper.state.meta,
+    total: details.length,
+    details
+  });
+});
+
 app.get('/api/popular-teams', (_req, res) => {
   res.json({
     meta: scraper.state.meta,
@@ -96,8 +116,18 @@ app.get('/api/cricket-fixtures', (_req, res) => {
   res.json({
     meta: scraper.state.meta,
     matches: scraper.state.fixtures.matches,
+    matchDetails: scraper.state.fixtures.matchDetails,
     sections: scraper.state.fixtures.sections,
     rawPageText: scraper.state.fixtures.rawPageText
+  });
+});
+
+app.get('/api/fixture-match-details', (_req, res) => {
+  const details = scraper.state.fixtures.matchDetails || [];
+  res.json({
+    meta: scraper.state.meta,
+    total: details.length,
+    details
   });
 });
 
