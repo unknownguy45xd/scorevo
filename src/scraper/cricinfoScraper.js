@@ -8,6 +8,7 @@ const LIVE_URL = 'https://www.espncricinfo.com/live-cricket-score';
 const FIXTURES_URL = 'https://www.espncricinfo.com/cricket-fixtures';
 
 function buildListingExtractionInBrowser() {
+function buildExtractionInBrowser() {
   const text = (node) => node?.textContent?.trim() || null;
 
   const href = (node) => {
@@ -65,11 +66,13 @@ function buildListingExtractionInBrowser() {
               .map((node) => text(node))
               .filter(Boolean)
               .slice(0, 20);
+              .slice(0, 12);
 
             const badges = Array.from(badgeNodes)
               .map((node) => text(node))
               .filter(Boolean)
               .slice(0, 8);
+              .slice(0, 4);
 
             return {
               title:
@@ -110,6 +113,7 @@ function buildListingExtractionInBrowser() {
           .map((node) => text(node))
           .filter(Boolean)
           .slice(0, 20);
+          .slice(0, 12);
 
         return {
           url: href(anchor),
@@ -189,6 +193,7 @@ function buildMatchDetailExtractionInBrowser() {
     links,
     rawPageText: document.body?.innerText || null,
     scrapedAt: new Date().toISOString()
+    rawPageText: document.body?.innerText?.slice(0, 100000) || null
   };
 }
 
@@ -197,6 +202,9 @@ class CricinfoScraper extends EventEmitter {
     super();
     this.refreshIntervalMs = refreshIntervalMs;
     this.detailConcurrency = detailConcurrency;
+  constructor({ refreshIntervalMs = 15000 } = {}) {
+    super();
+    this.refreshIntervalMs = refreshIntervalMs;
     this.browser = null;
     this.livePage = null;
     this.fixturesPage = null;
@@ -211,6 +219,7 @@ class CricinfoScraper extends EventEmitter {
         lastUpdatedAt: null,
         refreshIntervalMs,
         detailConcurrency
+        refreshIntervalMs
       },
       live: {
         popularTeams: [],
@@ -218,12 +227,14 @@ class CricinfoScraper extends EventEmitter {
         rawPageText: null,
         matches: [],
         matchDetails: []
+        rawPageText: null
       },
       fixtures: {
         matches: [],
         sections: [],
         rawPageText: null,
         matchDetails: []
+        rawPageText: null
       }
     };
   }
@@ -255,6 +266,7 @@ class CricinfoScraper extends EventEmitter {
       startedAt: new Date().toISOString(),
       refreshIntervalMs: this.refreshIntervalMs,
       detailConcurrency: this.detailConcurrency
+      refreshIntervalMs: this.refreshIntervalMs
     });
   }
 
@@ -337,18 +349,34 @@ class CricinfoScraper extends EventEmitter {
     const currLiveMap = mapBy(currLive, (item) => item.url || item.rawText);
     const prevFixturesMap = mapBy(prevFixtures, (item) => item.url || item.rawText);
     const currFixturesMap = mapBy(currFixtures, (item) => item.url || item.rawText);
+    const prevLive = previous.live.sections.flatMap((section) =>
+      section.cards.map((card) => ({ section: section.title, card }))
+    );
+    const curLive = current.live.sections.flatMap((section) =>
+      section.cards.map((card) => ({ section: section.title, card }))
+    );
+
+    const mapBy = (list, key) => new Map(list.map((item) => [key(item), item]));
+    const prevLiveMap = mapBy(prevLive, (item) => `${item.section}:${item.card.url || item.card.rawText}`);
+    const curLiveMap = mapBy(curLive, (item) => `${item.section}:${item.card.url || item.card.rawText}`);
+    const prevFixturesMap = mapBy(previous.fixtures.matches, (item) => item.url || item.rawText);
+    const curFixturesMap = mapBy(current.fixtures.matches, (item) => item.url || item.rawText);
 
     return {
       detectedAt: current.meta.lastUpdatedAt,
       live: {
         added: [...currLiveMap.entries()].filter(([key]) => !prevLiveMap.has(key)).map(([, value]) => value),
         updated: [...currLiveMap.entries()]
+        added: [...curLiveMap.entries()].filter(([key]) => !prevLiveMap.has(key)).map(([, value]) => value),
+        updated: [...curLiveMap.entries()]
           .filter(([key, value]) => prevLiveMap.has(key) && JSON.stringify(prevLiveMap.get(key)) !== JSON.stringify(value))
           .map(([, value]) => value)
       },
       fixtures: {
         added: [...currFixturesMap.entries()].filter(([key]) => !prevFixturesMap.has(key)).map(([, value]) => value),
         updated: [...currFixturesMap.entries()]
+        added: [...curFixturesMap.entries()].filter(([key]) => !prevFixturesMap.has(key)).map(([, value]) => value),
+        updated: [...curFixturesMap.entries()]
           .filter(([key, value]) => prevFixturesMap.has(key) && JSON.stringify(prevFixturesMap.get(key)) !== JSON.stringify(value))
           .map(([, value]) => value)
       }
@@ -381,6 +409,8 @@ class CricinfoScraper extends EventEmitter {
     const [liveDetails, fixtureDetails] = await Promise.all([
       this.scrapeDetailPages(liveCards.map((card) => card.url)),
       this.scrapeDetailPages(fixtureCards.map((card) => card.url))
+      this.livePage.evaluate(buildExtractionInBrowser),
+      this.fixturesPage.evaluate(buildExtractionInBrowser)
     ]);
 
     this.state = {
@@ -401,6 +431,12 @@ class CricinfoScraper extends EventEmitter {
         sections: fixturesPayload.sections,
         rawPageText: fixturesPayload.rawPageText,
         matchDetails: fixtureDetails
+        rawPageText: livePayload.rawPageText
+      },
+      fixtures: {
+        matches: fixturesPayload.matches,
+        sections: fixturesPayload.sections,
+        rawPageText: fixturesPayload.rawPageText
       }
     };
 
